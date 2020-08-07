@@ -105,4 +105,12 @@ Apify.main(async () => {
     log.info('Starting the crawl.');
     await crawler.run();
     log.info('Crawl finished.');
+
+    log.info("Calling tutorial-III");
+
+    let dataset = await Apify.openDataset();
+    let data = await dataset.getData();
+
+    let callResult = await Apify.call('HKnDbeiRKCBjqtYEg/tutorial-III', {startUrls: [], data: data.items});
+    log.info("Actor invoked", callResult);
 });
