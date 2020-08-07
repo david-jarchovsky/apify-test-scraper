@@ -6,7 +6,6 @@
 const Apify = require('apify');
 
 const { log } = Apify.utils
-
 log.setLevel(log.LEVELS.DEBUG);
 
 function processMainPage(request, response, body, contentType, $, queue) {
