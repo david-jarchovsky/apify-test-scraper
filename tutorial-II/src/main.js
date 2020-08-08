@@ -8,6 +8,8 @@ const Apify = require('apify');
 const { log } = Apify.utils
 log.setLevel(log.LEVELS.DEBUG);
 
+const DATASET_NAME = "tutorial-dataset";
+
 function processMainPage(request, response, body, contentType, $, queue) {
   $(".s-result-item").each(async (index, element) => {
     asin = $(element).attr("data-asin");
@@ -50,7 +52,7 @@ async function processDetail(request, response, body, contentType, $, queue) {
     }));
 }
 
-function processOffer(request, response, body, contentType, $) {
+function processOffer(request, response, body, contentType, $, resultDataset) {
     $(".olpOffer").each((index, element) => {
       result = {
         title: request.userData.title,
@@ -61,8 +63,8 @@ function processOffer(request, response, body, contentType, $) {
         sellerName: $(element).find("olpSellerName img").attr("alt"),
         shippingPrice: request.userData.shippingPrice
       }
-      log.debug("Scraped result: ", result);
-      Apify.pushData(result);
+      log.debug("Pushing result: ", result);
+      resultDataset.pushData(result);
     })
 }
 
@@ -70,7 +72,7 @@ Apify.main(async () => {
     const input = await Apify.getInput();
     log.debug("Input: ", input);
 
-    const requestQueue = await Apify.openRequestQueue("my-queue1");
+    const requestQueue = await Apify.openRequestQueue("my-queue");
 
     let initialRequest = {
       url: "https://www.amazon.com/s?ref=nb_sb_noss&k=" + input.keyword,
@@ -82,7 +84,7 @@ Apify.main(async () => {
     log.debug("Adding initial request to the queue", initialRequest);
     let queueOperation = await requestQueue.addRequest(initialRequest);
     log.debug("URL added", queueOperation);
-
+    const resultDataset = await Apify.openDataset(DATASET_NAME);
     const handleFunction = async function ({ request, response, body, contentType, $ }) {
       if (request.userData.type == 'main') {
         log.debug("Processing main: " + request.url + " ...");
@@ -92,13 +94,30 @@ Apify.main(async () => {
         processDetail(request, response, body, contentType, $, requestQueue);
       } else if (request.userData.type = "offer") {
         log.debug("Processing offer: " + request.url + " ...");
-        processOffer(request, response, body, contentType, $);
+        processOffer(request, response, body, contentType, $, resultDataset);
       }
     }
 
+    const proxyConfiguration = await Apify.createProxyConfiguration({
+        groups: ['BUYPROXIES94952'],
+    });
+
     const crawler = new Apify.CheerioCrawler({
       requestQueue,
-      handlePageFunction: handleFunction
+      proxyConfiguration,
+      useSessionPool: true,
+      sessionPoolOptions: {
+        sessionOptions: {
+          maxPoolSize: 5,
+          maxErrorScore: 1,
+          maxUsageCount: 5
+        }
+      },
+      handlePageFunction: handleFunction,
+      autoscaledPoolOptions: {
+        minConcurrency: 1,
+        maxConcurrency: 1
+      }
     })
 
     log.info('Starting the crawl.');
@@ -107,9 +126,9 @@ Apify.main(async () => {
 
     log.info("Calling tutorial-III");
 
-    let dataset = await Apify.openDataset();
+    let dataset = await Apify.openDataset(DATASET_NAME);
     let data = await dataset.getData();
-
+    log.debug("Data retrieved", data);
     let callResult = await Apify.call('HKnDbeiRKCBjqtYEg/tutorial-III', {startUrls: [], data: data.items});
     log.info("Actor invoked", callResult);
 });

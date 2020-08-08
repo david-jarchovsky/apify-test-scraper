@@ -9,44 +9,53 @@ const { log } = Apify.utils
 
 log.setLevel(log.LEVELS.DEBUG);
 
+const DATASET_NAME = "tutorial-III-dataset";
+
 function getPriceAsNumber(price) {
-  return typeof price == "string" && price[0] == "$"? price.substr(1) : price;
+  let result = typeof price == "string" && price[0] == "$"? price.substr(1) : price;
+  log.debug("Price resolved " + result);
+  return result;
 }
 
 function createInternalRecord(record) {
     return {
       originalData: record,
-      price: getPriceAsNumber(record)
+      price: getPriceAsNumber(record.price)
     }
 }
 
-async function storeCheapestOptions(data) {
-  var result = new Map();
-  await data.forEach((item) => {
+function storeCheapestOptions(data) {
+  var result = {};
+  log.info("Starting to process "+data.length+" items");
+  data.forEach((item) => {
     let record = createInternalRecord(item);
-    if(item.asin in result) {
-      result[item.asin] = record
-    } else {
-      if(result[item.asin].price > record.price) { // We take only first cheapest option. If mutliple cheapest options exist than we pick the first only.
-        result[item.asin] = record;
+    if(item.url in result) {
+      if(result[item.url].price > record.price) { // We take only first cheapest option. If mutliple cheapest options exist than we pick the first only.
+        log.debug("Price " + result[item.url].price + " > " + record.price + " selecting new cheapest option for key " + item.url);
+        result[item.url] = record;
       }
+    } else {
+      result[item.url] = record;
     }
   });
-
-  return result.values()
+  log.debug("Result compiled.", result);
+  return result;
 }
 
 Apify.main(async () => {
     const input = await Apify.getInput();
-    log.debug("Input: ", input);
 
     if(input.data == null || input.data.length == 0) {
       log.info("No input");
     } else {
       log.info("Selecting the cheapest offer");
-      let cheapest = await storeCheapestOptions(input.data);
-      log.info("Writing result of size "+cheapest.length);
-      await cheapest.forEach(Apify.pushData);
+      let cheapest = storeCheapestOptions(input.data);
+      const dataset = await Apify.openDataset(DATASET_NAME);
+      for(var key in  cheapest) {
+        let toBeWritten = cheapest[key].originalData;
+        log.debug("Writing record", toBeWritten);
+        await dataset.pushData(toBeWritten);
+      };
       log.info("Done");
     }
 });
