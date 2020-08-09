@@ -6,9 +6,11 @@
 const Apify = require('apify');
 
 const { log } = Apify.utils
-log.setLevel(log.LEVELS.DEBUG);
+log.setLevel(log.LEVELS.INFO);
 
 const DATASET_NAME = "tutorial-dataset";
+const ASIN_COUNTER_STORE_NAME = "ASIN_COUNTER";
+const ASIN_COUNTER = {};
 
 function processMainPage(request, response, body, contentType, $, queue) {
   $(".s-result-item").each(async (index, element) => {
@@ -52,6 +54,21 @@ async function processDetail(request, response, body, contentType, $, queue) {
     }));
 }
 
+async function countAsin(asin) {
+  if (ASIN_COUNTER[asin] == undefined) {
+    ASIN_COUNTER[asin] = 1;
+  } else {
+    ASIN_COUNTER[asin]++;
+  }
+}
+
+function initAsinCounterPrintToLog(){
+  setTimeout(() => {
+    log.info("Asin counter is: ", ASIN_COUNTER);
+    initAsinCounterPrintToLog();
+  }, 5000);
+}
+
 function processOffer(request, response, body, contentType, $, resultDataset) {
     $(".olpOffer").each((index, element) => {
       result = {
@@ -65,15 +82,26 @@ function processOffer(request, response, body, contentType, $, resultDataset) {
       }
       log.debug("Pushing result: ", result);
       resultDataset.pushData(result);
+      countAsin(request.userData.asin);
     })
+}
+
+async function persistAsinCounterEventHandler(event) {
+  let store = await Apify.openKeyValueStore();
+  await store.setValue(ASIN_COUNTER_STORE_NAME, ASIN_COUNTER);
+}
+
+async function initializeAsinCounter(){
+  let store = await Apify.openKeyValueStore();
+  ASIN_COUNTER = await store.getValue(ASIN_COUNTER_STORE_NAME);
 }
 
 Apify.main(async () => {
     const input = await Apify.getInput();
     log.debug("Input: ", input);
-
+    Apify.events.on('migrating', persistAsinCounterEventHandler);
     const requestQueue = await Apify.openRequestQueue("my-queue");
-
+    initAsinCounterPrintToLog();
     let initialRequest = {
       url: "https://www.amazon.com/s?ref=nb_sb_noss&k=" + input.keyword,
       userData: {
