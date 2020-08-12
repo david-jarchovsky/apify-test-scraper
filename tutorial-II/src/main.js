@@ -12,17 +12,19 @@ const DATASET_NAME = "tutorial-dataset";
 const ASIN_COUNTER_STORE_NAME = "ASIN_COUNTER";
 const ASIN_COUNTER = {};
 
-function processMainPage(request, response, body, contentType, $, queue) {
-  $(".s-result-item").each(async (index, element) => {
+async function processMainPage(request, response, body, contentType, $, queue) {
+  const elements = $(".s-result-item");
+  for(let i = 0; i < elements.size(); i++) {
+    const element = elements.get(i);
     asin = $(element).attr("data-asin");
     if (asin != undefined && asin != null && asin != "") {
-      url = "https://www.amazon.com/dp/" + asin
-      log.debug("Adding URL "+url)
+      url = `https://www.amazon.com/dp/${asin}`;
+      log.debug(`Adding URL ${url}`);
       await queue.addRequest(new Apify.Request({url: url, userData: {
         type: "detail", asin: asin, keyword: request.userData.keyword
       }}));
     }
-  })
+  }
 }
 
 const PRICE_REGEXP = /\$\d+(\.\d+)?/g
@@ -36,10 +38,10 @@ async function processDetail(request, response, body, contentType, $, queue) {
     if (shippingPrice != null && shippingPrice != "") {
       regexpResult = shippingPrice.match(PRICE_REGEXP);
       shippingPrice = regexpResult != null && regexpResult.length > 0? regexpResult[0] : null;
-      log.debug("Shipping price detected: "+shippingPrice)
+      log.debug(`Shipping price detected: ${shippingPrice}`);
     }
 
-    offerUrl = "https://www.amazon.com/gp/offer-listing/" + request.userData.asin
+    offerUrl = `https://www.amazon.com/gp/offer-listing/${request.userData.asin}`
     await queue.addRequest(new Apify.Request({
       url: offerUrl,
       userData: {
@@ -64,7 +66,7 @@ async function countAsin(asin) {
 
 function initAsinCounterPrintToLog(){
   setTimeout(() => {
-    log.info("Asin counter is: ", ASIN_COUNTER);
+    log.info("Asin counter is", ASIN_COUNTER);
     initAsinCounterPrintToLog();
   }, 5000);
 }
@@ -80,7 +82,7 @@ function processOffer(request, response, body, contentType, $, resultDataset) {
         sellerName: $(element).find("olpSellerName img").attr("alt"),
         shippingPrice: request.userData.shippingPrice
       }
-      log.debug("Pushing result: ", result);
+      log.debug(`Pushing result: ${result}`);
       resultDataset.pushData(result);
       countAsin(request.userData.asin);
     })
@@ -103,7 +105,7 @@ Apify.main(async () => {
     const requestQueue = await Apify.openRequestQueue("my-queue");
     initAsinCounterPrintToLog();
     let initialRequest = {
-      url: "https://www.amazon.com/s?ref=nb_sb_noss&k=" + input.keyword,
+      url: `https://www.amazon.com/s?ref=nb_sb_noss&k=${input.keyword}`,
       userData: {
         type: "main",
         keyword: input.keyword
@@ -115,13 +117,13 @@ Apify.main(async () => {
     const resultDataset = await Apify.openDataset(DATASET_NAME);
     const handleFunction = async function ({ request, response, body, contentType, $ }) {
       if (request.userData.type == 'main') {
-        log.debug("Processing main: " + request.url + " ...");
-        processMainPage(request, response, body, contentType, $, requestQueue);
+        log.debug(`Processing main: ${request.url} ...`);
+        await processMainPage(request, response, body, contentType, $, requestQueue);
       } else if (request.userData.type == 'detail'){
-        log.debug("Processing detail: " + request.url + " ...");
+        log.debug(`Processing detail: ${request.url} ...`);
         processDetail(request, response, body, contentType, $, requestQueue);
       } else if (request.userData.type = "offer") {
-        log.debug("Processing offer: " + request.url + " ...");
+        log.debug(`Processing offer: ${request.url} ...`);
         processOffer(request, response, body, contentType, $, resultDataset);
       }
     }

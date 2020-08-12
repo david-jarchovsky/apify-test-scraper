@@ -14,11 +14,11 @@ const DATASET_ID = "t0nPrjd9TtkNo5PBu";
 const PAGE_SIZE = 100;
 
 async function processResult(task) {
-  log.debug("Task state is: " + task.status);
+  log.debug(`Task state is: ${task.status}`);
 
   let internalTask = task;
   while(!FINAL_STATES.includes(internalTask.status)) {
-    log.debug("Checking task [" + internalTask.id + "] status ... ");
+    log.debug(`Checking task ${internalTask.id} status ...`);
     internalTask = await Apify.client.acts.getRun(
       {
         actId: ACTOR_ID,
@@ -56,19 +56,20 @@ Apify.main(async () => {
 
     log.debug("Task invocation returned result", invocation);
 
-    let dataset = await processResult(invocation); // This is dataset
+    const dataset = await processResult(invocation); // This is dataset
     log.debug("Dataset", dataset);
     if (dataset != undefined && dataset != null) {
       let offset = 0;
       let res = "";
+      let rows;
       do {
-        var rows = await dataset.getData({format: "csv", offset: offset, limit: PAGE_SIZE});
+        rows = await dataset.getData({format: "csv", offset: offset, limit: PAGE_SIZE});
         log.debug("Data: ", rows);
         res += rows.items;
         offset += PAGE_SIZE;
       } while(rows.count > 0);
 
-      let keyValueStore = await Apify.openKeyValueStore('tutorial-V');
+      const keyValueStore = await Apify.openKeyValueStore('tutorial-V');
       await keyValueStore.setValue("OUTPUT", res, {contentType: 'text/csv'});
     }
 

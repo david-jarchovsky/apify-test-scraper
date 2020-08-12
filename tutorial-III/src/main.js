@@ -12,8 +12,8 @@ log.setLevel(log.LEVELS.DEBUG);
 const DATASET_NAME = "tutorial-III-dataset";
 
 function getPriceAsNumber(price) {
-  let result = typeof price == "string" && price[0] == "$"? price.substr(1) : price;
-  log.debug("Price resolved " + result);
+  const result = typeof price == "string" && price[0] == "$"? price.substr(1) : price;
+  log.debug(`Price resolved ${result}`);
   return result;
 }
 
@@ -25,8 +25,8 @@ function createInternalRecord(record) {
 }
 
 function storeCheapestOptions(data) {
-  var result = {};
-  log.info("Starting to process "+data.length+" items");
+  let result = {};
+  log.info(`Starting to process ${data.length} items`);
   data.forEach((item) => {
     let record = createInternalRecord(item);
     if(item.url in result) {
@@ -49,10 +49,10 @@ Apify.main(async () => {
       log.info("No input");
     } else {
       log.info("Selecting the cheapest offer");
-      let cheapest = storeCheapestOptions(input.data);
+      const cheapest = storeCheapestOptions(input.data);
       const dataset = await Apify.openDataset(DATASET_NAME);
-      for(var key in  cheapest) {
-        let toBeWritten = cheapest[key].originalData;
+      for(let key in  cheapest) {
+        const toBeWritten = cheapest[key].originalData;
         log.debug("Writing record", toBeWritten);
         await dataset.pushData(toBeWritten);
       };
