@@ -15,6 +15,7 @@
  http://country-US:MyVerySecretPassword@proxy.apify.com:8000
  1. _What do you need to do to rotate proxies (one proxy usually has one IP)? How does this differ for Cheerio Scraper and Puppeteer Scraper?_
  We need to configure a proxy pool. It does not differ for Cheerio and Puppeteer function.
+ _ADDED:_ Actually, I cannot find much differences in Guide. However, I suppose that the biggest difference comes from the nature of Cheerio and Puppeteer crawler. While Cheerio basically sends 1 request to download the whole thing, then Puppeteer "loads" the page and then the loaded Javascript can send 'N' requests therefore this N request should be sent through the same proxy as otherwise it does not 'look' natural. Puppeteer needs to use session ID in order to achieve that however, Cheerio can also use session ID.
  1. _Try to set up the Apify Proxy (using any group or auto) in your browser. This is useful for testing how websites behave with proxies from specific countries (although most are from the US). You can try Switchy Omega extension but there are many more. Were you successful?_
  yes
  1. _Name a few different ways a website can prevent you from scraping it._
